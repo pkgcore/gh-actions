@@ -13,6 +13,6 @@ runs:
       shell: bash
       run: |
         set -e
-        wget https://archive.ubuntu.com/ubuntu/pool/universe/b/bash/bash-static_5.3-1ubuntu1_amd64.deb
-        dpkg --fsys-tarfile bash-static_5.3-1ubuntu1_amd64.deb | tar -xO ./usr/bin/bash-static > /usr/local/bin/bash
+        wget http://archive.ubuntu.com/ubuntu/pool/main/b/bash/bash-static_5.3-2ubuntu1_amd64.deb
+        dpkg --fsys-tarfile *.deb | tar -xO ./usr/bin/bash-static > /usr/local/bin/bash
         chmod +x /usr/local/bin/bash
