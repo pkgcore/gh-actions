@@ -43,6 +43,7 @@ runs:
       if: ${{ inputs.use_last_release }}
       shell: bash
       run: |
+        set -ex
         echo LAST_RELEASE="v$(pip index versions "${{ inputs.target }}" | grep LATEST | grep -oP '[\d.]+')" >> $GITHUB_ENV
 
     - name: Checkout ${{ inputs.target }} ${{ env.LAST_RELEASE != '' && env.LAST_RELEASE || '' }}
