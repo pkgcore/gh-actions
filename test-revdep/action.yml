@@ -1,0 +1,100 @@
+name: Test a pkgcore project against the given source, to see if this breaks downstream
+description: |
+  If no artifact-id's are given, do a standard actions/clone .  If artifacts are given, fetch the artifact and unpack it.
+
+  This is best used in test workflows that you want to be able to reuse for release tests; rather than having to ifdef the
+  test setup code for clone or fetching an artifact, this action can be used instead and it's behavior changes based on if
+  a non empty artifact-id was given in the inputs.
+
+inputs:
+  artifact-id:
+    description: The artifact-id to download and unpack.  If not given, a standard actions/checkout@v5 is ran
+    required: false
+  organization:
+    default: pkgcore
+    description: |
+      Which github organization to fetch dependencies from, including the project to test when testing against git.  Ignored for tests against released versions.
+  target:
+    description: Which pkgcore project to test.
+    required: true
+  use_last_release:
+    description: If a non empty value is given, use the last release to pypi.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout snakeoil
+      uses: pkgcore/gh-actions/get-source@main
+      with:
+        artifact-id: ${{ inputs.artifact-id }}
+        path: source
+
+    - name: Install bash 5.3
+      uses: pkgcore/gh-actions/bash-5.3@main
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - name: Find latest pypi release of ${{ inputs.target }}
+      if: ${{ inputs.use_last_release }}
+      shell: bash
+      run: |
+        echo LAST_RELEASE="v$(pip index versions "${{ inputs.target }}" | grep LATEST | grep -oP '[\d.]+')" >> $GITHUB_ENV
+
+    - name: Checkout ${{ inputs.target }} ${{ env.LAST_RELEASE != '' && env.LAST_RELEASE || '' }}
+      uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.organization }}/${{ inputs.target }}
+        path: target
+        ref: ${{ env.LAST_RELEASE != '' && format('refs/tags/{0}', env.LAST_RELEASE) || '' }}
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        set -ex
+        pip install --upgrade pip
+
+        # all pip calls need to be in a *single* call.  This forces pip to bail if a later requested target
+        # is incompatible with a previous one.
+
+        targets=( -e ./source/ -e ./target/ pytest-github-actions-annotate-failures )
+        if [ -n "${{ inputs.use_last_release }}" ]; then
+          exec pip install --upgrade "${targets[@]}"
+        fi
+
+        source_project="${{ github.repository }}" # pkgcore/snakeoil
+        source_project="${source_project#*/}" # snakeoil
+
+        add_target() {
+          if [ "$1" != "${source_project}" -a "$1" != "${{ inputs.target }}" ]; then
+            targets+=( "git+https://github.com/${{ inputs.organization }}/$1" )
+          fi
+        }
+
+        # Note the fallthrough; it's intentional.  This is the consumer chain.
+        case "${{ inputs.target }}" in
+          nattka | pkgdev)
+            add_target pkgcheck
+            ;&
+          pkgcheck)
+            add_target pkgcore
+            ;&
+          pkgcore)
+            add_target snakeoil
+            ;;
+          *)
+            echo "unsupported target: ${{ inputs.target }}"
+            exit 1
+            ;;
+        esac
+
+        exec pip install --upgrade "${targets[@]}"
+
+    - name: Run ${{ inputs.target }} test suite
+      shell: bash
+      working-directory: ./target/
+      run: PY_COLORS=1 pytest -v
