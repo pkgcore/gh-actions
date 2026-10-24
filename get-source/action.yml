@@ -8,7 +8,7 @@ description: |
 
 inputs:
   artifact-id:
-    description: The artifact-id to download and unpack.  If not given, a standard actions/checkout@v5 is ran
+    description: The artifact-id to download and unpack.  If not given, a standard actions/checkout@v7 is ran
     required: false
   artifact-runner-id:
     description: |
@@ -33,13 +33,13 @@ runs:
   steps:
     - name: Checkout code
       if: inputs.artifact-id == ''
-      uses: actions/checkout@v5
+      uses: actions/checkout@v7
       with:
         path: ${{ inputs.path }}
     - name: Download artifact
       id: download
       if: inputs.artifact-id
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v8
       with:
         artifact-ids: ${{ inputs.artifact-id }}
         run-id: ${{ inputs.artifact-runner-id}}
