@@ -13,10 +13,10 @@ jobs:
             packages: write
         strategy:
             matrix:
-                PYTHON_VERSION: ['3.12', '3.13', '3.14']
-                PYTHON_UMASK: [false]
+                PYTHON_VERSION: ['3.12', '3.13', '3.14', '3.15']
+                PYTHON_UNMASK: [false]
                 include:
-                    - PYTHON_VERSION: 3.15
+                    - PYTHON_VERSION: 3.16
                       PYTHON_UNMASK: true
             fail-fast: false
         steps:
